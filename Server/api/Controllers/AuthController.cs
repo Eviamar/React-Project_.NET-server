@@ -26,6 +26,7 @@ namespace Server.api.Controllers
         {
             string ipAddress = "";
             string userAgent = "";
+            Console.WriteLine("register triggered");
             try
             {
                 // Check if the username already exists
@@ -44,7 +45,7 @@ namespace Server.api.Controllers
                 _dbContext.Users.Add(request.UserItem);
                 _dbContext.SaveChanges();
                 var token = _jwtTokenHelper.GenerateJwtToken(request.UserItem.Username);
-
+                Console.WriteLine(token);
                 ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown IP";
                 userAgent = Request.Headers["User-Agent"].ToString();
                 Logger.LogRegister(request.UserItem.Username, ipAddress, userAgent);

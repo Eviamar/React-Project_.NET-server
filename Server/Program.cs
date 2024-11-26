@@ -5,15 +5,11 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Server.Utils;
-using System.Diagnostics;
-using System.Resources;
-
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Load environment variables from .env file
 Env.Load();
-
 
 // Get DB path and file name from environment variables, or use default values
 string dbPath = Environment.GetEnvironmentVariable("DB_PATH") ?? "Data";  // Default to "Data" folder
@@ -26,16 +22,12 @@ connectionString = connectionString
                         .Replace("${DB_PATH}", dbPath)
                         .Replace("${DB_FILE_NAME}", dbFileName);
 
-
-// Add services to the container.
+// Register services
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 
-
-// Add authentication, controllers, etc.
-builder.Services.AddControllers();
-
-builder.Services.AddAuthentication("Bearer")
+// Add authentication and JWT bearer configuration
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
@@ -46,75 +38,66 @@ builder.Services.AddAuthentication("Bearer")
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
             ValidAudience = builder.Configuration["JwtSettings:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:SecretKey"] ?? "692a822cd595fc5125b2da4e54241eebeac8a1b178be78380b05daef4864436e")
-)
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:SecretKey"]
+                ?? "692a822cd595fc5125b2da4e54241eebeac8a1b178be78380b05daef4864436e"))
         };
     });
-
-
+// Register JwtTokenHelper as a service
+builder.Services.AddScoped<JwtTokenHelper>();
+// Add authorization services
 builder.Services.AddAuthorization();
-builder.Services.AddAuthentication();
 
 // Get the HTTPS port number from the environment variable (or use a default)
 string httpsPort = Environment.GetEnvironmentVariable("PORT") ?? "5003";
 
-
 // Configure Kestrel to listen only on the HTTPS port
 builder.WebHost.ConfigureKestrel(options =>
 {
+    options.ListenLocalhost(5000); // HTTP port
     options.ListenLocalhost(int.Parse(httpsPort), listenOptions =>
     {
         listenOptions.UseHttps(); // Enable HTTPS
     });
 });
 
-
-
-// Add services to the container (e.g., controllers, Swagger, etc.)
+// Register controllers and other services
 builder.Services.AddControllers();
 
 // Build the application
 var app = builder.Build();
 
-
-
+// Application lifecycle events
 var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
 lifetime.ApplicationStopping.Register(() =>
 {
-   
     Logger.Log("Shutdown is in progress...");
 });
 lifetime.ApplicationStarted.Register(() =>
 {
-    Logger.Log($"Server started and running on port {httpsPort}");
+    Logger.Log($"Server started and running on Https port {httpsPort} | Http port 5000");
 });
 lifetime.ApplicationStopped.Register(() =>
 {
-    lifetime.StopApplication();
     Logger.Log("Server has fully stopped");
 });
+
+// Apply pending migrations to the database
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     dbContext.Database.Migrate();  // This will apply any pending migrations
 }
 
-
-// Middleware setup.
+// Middleware setup
 app.UseAuthentication();
 app.UseAuthorization();
-// Use HTTPS redirection if desired (although not needed if we're only using HTTPS)
-app.UseHttpsRedirection();
+app.UseRouting();
 
-// Map controller routes (create controllers as needed)
+// Map controller routes
 app.MapControllers();
-// Example usage
+
+// Log server startup
+Logger.Log("Server is starting...");
+
 // Run the application
-Logger.Log($"Server is starting...");
 app.Run();
-
-
-
-
-
-
