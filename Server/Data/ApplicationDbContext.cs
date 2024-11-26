@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Server.api.auth;
+using Server.api.Models;
 
 namespace Server.Data
 {
@@ -8,6 +8,6 @@ namespace Server.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         // Define your tables as DbSet<T> properties. Example:
-        public DbSet<Register> Users { get; set; }
+        public DbSet<UserItem> Users { get; set; }
     }
 }

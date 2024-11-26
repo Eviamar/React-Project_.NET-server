@@ -5,6 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Server.Utils;
+using System.Diagnostics;
+using System.Resources;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,8 +21,11 @@ string dbFileName = Environment.GetEnvironmentVariable("DB_FILE_NAME") ?? "mydat
 
 // Get the connection string from appsettings.json and replace placeholders
 string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                        ?? "Data Source=E:\\React_Project\\Server\\Database\\mydatabase.db"; // Use a default value
+connectionString = connectionString
                         .Replace("${DB_PATH}", dbPath)
                         .Replace("${DB_FILE_NAME}", dbFileName);
+
 
 // Add services to the container.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -41,7 +46,8 @@ builder.Services.AddAuthentication("Bearer")
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
             ValidAudience = builder.Configuration["JwtSettings:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:SecretKey"]))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:SecretKey"] ?? "692a822cd595fc5125b2da4e54241eebeac8a1b178be78380b05daef4864436e")
+)
         };
     });
 
@@ -62,12 +68,31 @@ builder.WebHost.ConfigureKestrel(options =>
     });
 });
 
+
+
 // Add services to the container (e.g., controllers, Swagger, etc.)
 builder.Services.AddControllers();
 
 // Build the application
 var app = builder.Build();
 
+
+
+var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+lifetime.ApplicationStopping.Register(() =>
+{
+   
+    Logger.Log("Shutdown is in progress...");
+});
+lifetime.ApplicationStarted.Register(() =>
+{
+    Logger.Log($"Server started and running on port {httpsPort}");
+});
+lifetime.ApplicationStopped.Register(() =>
+{
+    lifetime.StopApplication();
+    Logger.Log("Server has fully stopped");
+});
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -86,14 +111,6 @@ app.MapControllers();
 // Example usage
 // Run the application
 Logger.Log($"Server is starting...");
-app.Lifetime.ApplicationStarted.Register(() =>
-{
-    Logger.Log($"Server started and running on port {httpsPort}");
-});
-app.Lifetime.ApplicationStopping.Register(() =>
-{
-    Logger.Log("Server is shutting down.");
-});
 app.Run();
 
 

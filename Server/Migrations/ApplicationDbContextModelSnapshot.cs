@@ -16,7 +16,7 @@ namespace Server.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
 
-            modelBuilder.Entity("Server.api.auth.Register", b =>
+            modelBuilder.Entity("Server.api.Models.UserItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -26,7 +26,14 @@ namespace Server.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsAdmin")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsVerified")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Password")
